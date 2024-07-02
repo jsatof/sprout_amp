@@ -12,13 +12,35 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -03 -Wall -Wpedantic -We
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(THIRD_PARTY_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+	set(CMAKE_CXX_COMPILER g++)
+
+elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	message("WINDOWS")
+	set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+	# where is the target environment located
+	set(CMAKE_FIND_ROOT_PATH /usr/x86_64-w64-mingw32)
+
+	# adjust the default behavior of the FIND_XXX() commands:
+	# search programs in the host environment
+	set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+
+	# search headers and libraries in the target environment
+	set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+elseif (${CMAKE_SYSTEM_NAME} STREQUAL "MacOS")
+	message("MACOS")
+	set(CMAKE_CXX_COMPILER g++)
+
+endif()
+
+#set(THIRD_PARTY_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 #include(cmake/dependencies.cmake)
 
 find_package(JUCE CONFIG REQUIRED)
 find_package(GTest REQUIRED)
 
-enable_testing()
 
 # reconfigure by passing -DLV2_INSTALL_PREFIX=<your custom path> to cmake
 option(LV2_INSTALL_PREFIX "~/.lv2")
