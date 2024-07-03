@@ -37,6 +37,15 @@ public:
 
 private:
 	juce::AudioProcessorValueTreeState treeState;
+	juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+	struct MyParam {
+		double gain;
+		double blend;
+		double volume;
+		double distortion_calc;
+	};
+	MyParam mParam;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SproutAudioProcessor)
 };

@@ -5,11 +5,19 @@ SproutAudioProcessor::SproutAudioProcessor()
     : AudioProcessor(BusesProperties() // this plugin doesnt need midi input, also is not a synthesizer
                        .withInput("Input",  juce::AudioChannelSet::stereo(), true)
                        .withOutput("Output", juce::AudioChannelSet::stereo(), true))
-    , treeState(*this, nullptr, "PARAMETERS", {
-    		// these default values should match the Editor values, these are loaded and set before the gui
-    		std::make_unique<juce::AudioParameterFloat>("gain", "Gain", juce::NormalisableRange<float>(0.f, 5000.f), 0.f),
-    })
-{
+    , treeState(*this, nullptr, "PARAMETERS", createParameterLayout())
+{}
+
+using ParameterLayout = juce::AudioProcessorValueTreeState::ParameterLayout;
+ParameterLayout SproutAudioProcessor::createParameterLayout() {
+	ParameterLayout layout;
+
+    // these default values should match the Editor values, these are loaded and set before the gui
+    layout.add(std::make_unique<juce::AudioParameterFloat>("ampgain", "AmpGain", juce::NormalisableRange<float>(0.f, 5000.f), 0.f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>("ampblend", "AmpBlend", juce::NormalisableRange<float>(0.f, 5000.f), 0.f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>("ampvolume", "AmpVolume", juce::NormalisableRange<float>(0.f, 5000.f), 0.f));
+
+    return layout;
 }
 
 juce::AudioProcessorValueTreeState &SproutAudioProcessor::getState() {
@@ -54,7 +62,7 @@ const juce::String SproutAudioProcessor::getProgramName(int index) {
     return {};
 }
 
-void SproutAudioProcessor::changeProgramName(int index, const juce::String& newName) {
+void SproutAudioProcessor::changeProgramName(int index, const juce::String &newName) {
     juce::ignoreUnused(index, newName);
 }
 
@@ -65,7 +73,7 @@ void SproutAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void SproutAudioProcessor::releaseResources() {}
 
-bool SproutAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
+bool SproutAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) {
         return false;
@@ -73,9 +81,25 @@ bool SproutAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
     return true;
 }
 
-void SproutAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    buffer.clear();
-    juce::ignoreUnused(midiMessages);
+void SproutAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &) {
+	mParam.gain = *treeState.getRawParameterValue("ampgain");
+	mParam.volume = *treeState.getRawParameterValue("ampvolume");
+	mParam.blend = *treeState.getRawParameterValue("ampblend");
+
+	const int n_in_channels = getTotalNumInputChannels();
+	const int n_out_channels = getTotalNumOutputChannels();
+
+	for (int i = n_in_channels; i < n_out_channels; ++i) {
+		buffer.clear(i, 0, buffer.getNumSamples());
+	}
+
+	for (int channel = 0; channel < n_in_channels; ++channel) {
+		float *samples = buffer.getWritePointer(channel);
+		for (int s = 0; s < buffer.getNumSamples(); ++s) {
+			mParam.distortion_calc = (2.0 / juce::MathConstants<double>::pi) * atan(mParam.gain * samples[s]);
+			samples[s] = mParam.volume * ((mParam.distortion_calc * -mParam.blend) + (samples[s] * (1.0 + mParam.blend)));
+		}
+	}
 }
 
 bool SproutAudioProcessor::hasEditor() const {
@@ -86,18 +110,16 @@ juce::AudioProcessorEditor* SproutAudioProcessor::createEditor() {
     return new SproutAudioProcessorEditor(*this);
 }
 
-void SproutAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
-    auto xml = std::unique_ptr<juce::XmlElement>(new juce::XmlElement("exampleSynthesizer"));
-    //xml->setAttribute("gain", double(*gain));
-    //xml->setAttribute("invertPhase", *invertPhase);
-    copyXmlToBinary(*xml, destData);
+// can use raw data, xml, or juce::ValueTree to load/store parameters
+void SproutAudioProcessor::getStateInformation(juce::MemoryBlock &destData) {
+	juce::MemoryOutputStream stream = {destData, false};
+	treeState.state.writeToStream(stream);
 }
 
 void SproutAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
-    auto xml = std::unique_ptr<juce::XmlElement>(getXmlFromBinary(data, sizeInBytes));
-    if (xml.get()) {
-        if (xml->hasTagName("exampleSynthesizer")) {
-        }
+	juce::ValueTree tree = juce::ValueTree::readFromData(data, size_t(sizeInBytes));
+    if (tree.isValid()) {
+		treeState.state = tree;
     }
 }
 
