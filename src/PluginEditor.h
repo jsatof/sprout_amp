@@ -2,7 +2,6 @@
 
 #include <PluginProcessor.h>
 
-
 class SproutAudioProcessorEditor final : public juce::AudioProcessorEditor {
 public:
     explicit SproutAudioProcessorEditor(SproutAudioProcessor &);
@@ -25,6 +24,8 @@ private:
 	juce::Label gainLabel;
 	juce::Label blendLabel;
 	juce::Label volumeLabel;
+
+	juce::ToggleButton ampBypassButton;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SproutAudioProcessorEditor)
 };

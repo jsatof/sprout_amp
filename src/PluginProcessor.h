@@ -34,6 +34,7 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
 	juce::AudioProcessorValueTreeState &getState();
+	void setAmpBypass(bool b);
 
 private:
 	juce::AudioProcessorValueTreeState treeState;
@@ -44,6 +45,7 @@ private:
 		double blend;
 		double volume;
 		double distortion_calc;
+		bool amp_bypassed;
 	};
 	MyParam mParam;
 
